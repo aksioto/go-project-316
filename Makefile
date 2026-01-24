@@ -1,8 +1,11 @@
-.PHONY: tidy test test-race cover lint build run
+.PHONY: tidy fmt test test-race cover lint build run
 
 tidy:
 	go mod tidy
 	go mod verify
+
+fmt:
+	goimports -w .
 
 test:
 	go test -v ./...

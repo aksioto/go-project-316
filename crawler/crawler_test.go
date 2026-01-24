@@ -2,68 +2,18 @@ package crawler_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
 	"code/crawler"
+	"code/internal/testutils"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-type testReport struct {
-	RootURL string     `json:"root_url"`
-	Depth   int        `json:"depth"`
-	Pages   []testPage `json:"pages"`
-}
-
-type testPage struct {
-	URL        string `json:"url"`
-	HTTPStatus int    `json:"http_status"`
-	Status     string `json:"status"`
-	Error      string `json:"error"`
-}
-
-func parseReport(data []byte) (*testReport, error) {
-	var report testReport
-	if err := json.Unmarshal(data, &report); err != nil {
-		return nil, err
-	}
-	return &report, nil
-}
-
-type roundTripFunc func(*http.Request) (*http.Response, error)
-
-func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req)
-}
-
-func newErrorClient(err error) *http.Client {
-	return &http.Client{
-		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			return nil, err
-		}),
-	}
-}
-
-func newResponseClient(status int, body string) *http.Client {
-	return &http.Client{
-		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{
-				StatusCode: status,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     make(http.Header),
-				Request:    req,
-			}, nil
-		}),
-	}
-}
 
 func TestAnalyze(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +30,7 @@ func TestAnalyze(t *testing.T) {
 		wantStatus     string
 		wantHTTPStatus int
 		wantError      bool
+		ctxFunc        func() (context.Context, context.CancelFunc)
 	}{
 		{
 			name:           "successful fetch",
@@ -92,7 +43,7 @@ func TestAnalyze(t *testing.T) {
 		},
 		{
 			name:           "network error",
-			httpClient:     newErrorClient(errors.New("connection refused")),
+			httpClient:     testutils.NewErrorClient(errors.New("connection refused")),
 			url:            "http://invalid.localhost.test:99999",
 			depth:          1,
 			wantStatus:     "error",
@@ -100,8 +51,20 @@ func TestAnalyze(t *testing.T) {
 			wantError:      true,
 		},
 		{
+			name:           "timeout",
+			httpClient:     testutils.NewTimeoutClient(),
+			url:            "http://example.com",
+			depth:          1,
+			wantStatus:     "error",
+			wantHTTPStatus: 0,
+			wantError:      true,
+			ctxFunc: func() (context.Context, context.CancelFunc) {
+				return context.WithTimeout(context.Background(), 10*time.Millisecond)
+			},
+		},
+		{
 			name:           "server error 500",
-			httpClient:     newResponseClient(http.StatusInternalServerError, "Internal Server Error"),
+			httpClient:     testutils.NewResponseClient(http.StatusInternalServerError, "Internal Server Error"),
 			url:            "http://example.com",
 			depth:          2,
 			wantStatus:     "ok",
@@ -110,7 +73,7 @@ func TestAnalyze(t *testing.T) {
 		},
 		{
 			name:           "not found 404",
-			httpClient:     newResponseClient(http.StatusNotFound, "Not Found"),
+			httpClient:     testutils.NewResponseClient(http.StatusNotFound, "Not Found"),
 			url:            "http://example.com/missing",
 			depth:          1,
 			wantStatus:     "ok",
@@ -121,19 +84,19 @@ func TestAnalyze(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := crawler.Options{
-				URL:        tt.url,
-				Depth:      tt.depth,
-				Timeout:    5 * time.Second,
-				HTTPClient: tt.httpClient,
-				IndentJSON: false,
+			ctx := context.Background()
+			if tt.ctxFunc != nil {
+				var cancel context.CancelFunc
+				ctx, cancel = tt.ctxFunc()
+				t.Cleanup(cancel)
 			}
 
-			result, err := crawler.Analyze(context.Background(), opts)
+			opts := testutils.NewCrawlerOptions(tt.url, tt.depth, tt.httpClient)
+			result, err := crawler.Analyze(ctx, opts)
 			require.NoError(t, err)
 			require.NotEmpty(t, result)
 
-			report, err := parseReport(result)
+			report, err := testutils.ParseReport(result)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.url, report.RootURL)
@@ -155,11 +118,7 @@ func TestAnalyze(t *testing.T) {
 }
 
 func TestAnalyzeRequiresHTTPClient(t *testing.T) {
-	opts := crawler.Options{
-		URL:        "https://example.com",
-		Depth:      1,
-		IndentJSON: false,
-	}
+	opts := testutils.NewCrawlerOptions("https://example.com", 1, nil)
 
 	_, err := crawler.Analyze(context.Background(), opts)
 	require.Error(t, err)
