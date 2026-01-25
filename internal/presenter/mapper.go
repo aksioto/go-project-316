@@ -88,6 +88,9 @@ func mapBrokenLinks(links []domain.BrokenLink) []BrokenLinkDTO {
 		dto := BrokenLinkDTO{
 			URL: l.URL,
 		}
+		if l.StatusCode != 0 {
+			dto.StatusCode = l.StatusCode
+		}
 		if l.Err != nil {
 			dto.Error = l.Err.Error()
 		}

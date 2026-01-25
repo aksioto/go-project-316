@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -16,11 +15,7 @@ import (
 )
 
 func TestAnalyze(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("<html><head><title>Test</title></head><body><h1>Hello</h1></body></html>"))
-	}))
-	defer server.Close()
+	const successHTML = "<html><head><title>Test</title></head><body><h1>Hello</h1></body></html>"
 
 	tests := []struct {
 		name           string
@@ -34,8 +29,8 @@ func TestAnalyze(t *testing.T) {
 	}{
 		{
 			name:           "successful fetch",
-			httpClient:     server.Client(),
-			url:            server.URL,
+			httpClient:     testutils.NewResponseClient(http.StatusOK, successHTML),
+			url:            "http://example.com",
 			depth:          1,
 			wantStatus:     "ok",
 			wantHTTPStatus: http.StatusOK,
@@ -115,6 +110,51 @@ func TestAnalyze(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAnalyzeBrokenLinks(t *testing.T) {
+	const pageURL = "http://example.com/page"
+	const htmlBody = `<!doctype html>
+<html>
+  <body>
+    <a href="http://example.com/ok">OK</a>
+    <a href="/broken">Broken</a>
+    <a href="">Empty</a>
+    <a href="mailto:test@example.com">Mail</a>
+  </body>
+</html>`
+
+	client := testutils.NewStubClient(map[string]testutils.StubResponse{
+		pageURL: {
+			StatusCode: http.StatusOK,
+			Body:       htmlBody,
+		},
+		"http://example.com/ok": {
+			StatusCode: http.StatusOK,
+			Body:       "ok",
+		},
+		"http://example.com/broken": {
+			StatusCode: http.StatusNotFound,
+			Body:       "not found",
+		},
+	})
+
+	opts := testutils.NewCrawlerOptions(pageURL, 1, client)
+	result, err := crawler.Analyze(context.Background(), opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	report, err := testutils.ParseReport(result)
+	require.NoError(t, err)
+	require.Len(t, report.Pages, 1)
+
+	page := report.Pages[0]
+	require.Len(t, page.BrokenLinks, 1)
+
+	broken := page.BrokenLinks[0]
+	assert.Equal(t, "http://example.com/broken", broken.URL)
+	assert.Equal(t, http.StatusNotFound, broken.StatusCode)
+	assert.Empty(t, broken.Error)
 }
 
 func TestAnalyzeRequiresHTTPClient(t *testing.T) {

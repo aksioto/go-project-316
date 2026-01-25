@@ -9,10 +9,17 @@ type Report struct {
 }
 
 type Page struct {
+	URL         string       `json:"url"`
+	HTTPStatus  int          `json:"http_status"`
+	Status      string       `json:"status"`
+	Error       string       `json:"error"`
+	BrokenLinks []BrokenLink `json:"broken_links,omitempty"`
+}
+
+type BrokenLink struct {
 	URL        string `json:"url"`
-	HTTPStatus int    `json:"http_status"`
-	Status     string `json:"status"`
-	Error      string `json:"error"`
+	StatusCode int    `json:"status_code,omitempty"`
+	Error      string `json:"error,omitempty"`
 }
 
 func ParseReport(data []byte) (*Report, error) {

@@ -1,4 +1,4 @@
-.PHONY: tidy fmt test test-race cover lint build run
+.PHONY: tidy fmt test test-race cover lint build run check
 
 tidy:
 	go mod tidy
@@ -30,3 +30,5 @@ run:
 	else \
 		go run ./cmd/hexlet-go-crawler $(URL); \
 	fi
+
+check: tidy fmt lint test

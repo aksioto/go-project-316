@@ -5,6 +5,7 @@ go 1.25
 require (
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v2 v2.27.5
+	golang.org/x/net v0.28.0
 )
 
 require (

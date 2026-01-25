@@ -1,4 +1,4 @@
-package usecase
+package analyzer
 
 import (
 	"context"
@@ -21,15 +21,27 @@ type Fetcher interface {
 	Fetch(ctx context.Context, url string) (domain.FetchResult, error)
 }
 
-type Analyzer struct {
-	fetcher Fetcher
-	opts    Options
+type LinkExtractor interface {
+	Extract(baseURL string, body []byte) []domain.Link
 }
 
-func NewAnalyzer(fetcher Fetcher, opts Options) *Analyzer {
+type BrokenLinkChecker interface {
+	Check(ctx context.Context, links []domain.Link) []domain.BrokenLink
+}
+
+type Analyzer struct {
+	fetcher           Fetcher
+	opts              Options
+	linkExtractor     LinkExtractor
+	brokenLinkChecker BrokenLinkChecker
+}
+
+func NewAnalyzer(fetcher Fetcher, extractor LinkExtractor, checker BrokenLinkChecker, opts Options) *Analyzer {
 	return &Analyzer{
-		fetcher: fetcher,
-		opts:    opts,
+		fetcher:           fetcher,
+		linkExtractor:     extractor,
+		brokenLinkChecker: checker,
+		opts:              opts,
 	}
 }
 
@@ -60,7 +72,9 @@ func (a *Analyzer) fetchPage(ctx context.Context, url string, depth int) domain.
 	}
 
 	page.StatusCode = result.StatusCode
-	// TODO: SEO, Assets, BrokenLinks
+	links := a.linkExtractor.Extract(url, result.Body)
+	page.BrokenLinks = a.brokenLinkChecker.Check(ctx, links)
+	// TODO: SEO, Assets
 
 	return page
 }

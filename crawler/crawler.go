@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"code/internal/usecase/analyzer"
 	"context"
 	"fmt"
 	"net/http"
@@ -8,7 +9,6 @@ import (
 
 	"code/internal/infrastructure/httpclient"
 	"code/internal/presenter"
-	"code/internal/usecase"
 )
 
 type Options struct {
@@ -28,7 +28,7 @@ func Analyze(ctx context.Context, opts Options) ([]byte, error) {
 		return nil, fmt.Errorf("http client is required")
 	}
 
-	usecaseOpts := usecase.Options{
+	usecaseOpts := analyzer.Options{
 		URL:         opts.URL,
 		Depth:       opts.Depth,
 		Retries:     opts.Retries,
@@ -39,8 +39,8 @@ func Analyze(ctx context.Context, opts Options) ([]byte, error) {
 	}
 
 	fetcher := httpclient.New(opts.HTTPClient, opts.UserAgent)
-	analyzer := usecase.NewAnalyzer(fetcher, usecaseOpts)
-	report := analyzer.Analyze(ctx)
+	defaultAnalyzer := analyzer.NewDefaultAnalyzer(fetcher, usecaseOpts)
+	report := defaultAnalyzer.Analyze(ctx)
 
 	jsonPresenter := presenter.NewJSONPresenter(opts.IndentJSON)
 	return jsonPresenter.Present(report)
