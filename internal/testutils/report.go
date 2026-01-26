@@ -13,7 +13,16 @@ type Page struct {
 	HTTPStatus  int          `json:"http_status"`
 	Status      string       `json:"status"`
 	Error       string       `json:"error"`
+	SEO         *SEO         `json:"seo,omitempty"`
 	BrokenLinks []BrokenLink `json:"broken_links,omitempty"`
+}
+
+type SEO struct {
+	HasTitle       bool   `json:"has_title"`
+	Title          string `json:"title"`
+	HasDescription bool   `json:"has_description"`
+	Description    string `json:"description"`
+	HasH1          bool   `json:"has_h1"`
 }
 
 type BrokenLink struct {

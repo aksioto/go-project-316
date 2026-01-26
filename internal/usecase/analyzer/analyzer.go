@@ -29,18 +29,24 @@ type BrokenLinkChecker interface {
 	Check(ctx context.Context, links []domain.Link) []domain.BrokenLink
 }
 
+type SEOAnalyzer interface {
+	Analyze(body []byte) domain.SEOResult
+}
+
 type Analyzer struct {
 	fetcher           Fetcher
 	opts              Options
 	linkExtractor     LinkExtractor
 	brokenLinkChecker BrokenLinkChecker
+	seoAnalyzer       SEOAnalyzer
 }
 
-func NewAnalyzer(fetcher Fetcher, extractor LinkExtractor, checker BrokenLinkChecker, opts Options) *Analyzer {
+func NewAnalyzer(fetcher Fetcher, extractor LinkExtractor, checker BrokenLinkChecker, seoAnalyzer SEOAnalyzer, opts Options) *Analyzer {
 	return &Analyzer{
 		fetcher:           fetcher,
 		linkExtractor:     extractor,
 		brokenLinkChecker: checker,
+		seoAnalyzer:       seoAnalyzer,
 		opts:              opts,
 	}
 }
@@ -74,6 +80,8 @@ func (a *Analyzer) fetchPage(ctx context.Context, url string, depth int) domain.
 	page.StatusCode = result.StatusCode
 	links := a.linkExtractor.Extract(url, result.Body)
 	page.BrokenLinks = a.brokenLinkChecker.Check(ctx, links)
+	seo := a.seoAnalyzer.Analyze(result.Body)
+	page.SEO = &seo
 	// TODO: SEO, Assets
 
 	return page

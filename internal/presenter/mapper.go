@@ -61,9 +61,9 @@ func statusFromError(err error) string {
 
 func mapSEO(seo domain.SEOResult) *SEODTO {
 	return &SEODTO{
-		HasTitle:       seo.Title != "",
+		HasTitle:       seo.HasTitle,
 		Title:          seo.Title,
-		HasDescription: seo.Description != "",
+		HasDescription: seo.HasDescription,
 		Description:    seo.Description,
 		HasH1:          seo.HasH1,
 	}

@@ -157,6 +157,79 @@ func TestAnalyzeBrokenLinks(t *testing.T) {
 	assert.Empty(t, broken.Error)
 }
 
+func TestAnalyzeSEOWithTags(t *testing.T) {
+	const pageURL = "http://example.com/seo"
+	const htmlBody = `<!doctype html>
+<html>
+  <head>
+    <title>Hello &amp; World</title>
+    <meta name="description" content="Best &amp; reliable" />
+  </head>
+  <body>
+    <h1>Landing</h1>
+  </body>
+</html>`
+
+	client := testutils.NewStubClient(map[string]testutils.StubResponse{
+		pageURL: {
+			StatusCode: http.StatusOK,
+			Body:       htmlBody,
+		},
+	})
+
+	opts := testutils.NewCrawlerOptions(pageURL, 1, client)
+	result, err := crawler.Analyze(context.Background(), opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	report, err := testutils.ParseReport(result)
+	require.NoError(t, err)
+	require.Len(t, report.Pages, 1)
+
+	page := report.Pages[0]
+	require.NotNil(t, page.SEO)
+	assert.True(t, page.SEO.HasTitle)
+	assert.Equal(t, "Hello & World", page.SEO.Title)
+	assert.True(t, page.SEO.HasDescription)
+	assert.Equal(t, "Best & reliable", page.SEO.Description)
+	assert.True(t, page.SEO.HasH1)
+}
+
+func TestAnalyzeSEOMissingTags(t *testing.T) {
+	const pageURL = "http://example.com/seo-empty"
+	const htmlBody = `<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <p>Content</p>
+  </body>
+</html>`
+
+	client := testutils.NewStubClient(map[string]testutils.StubResponse{
+		pageURL: {
+			StatusCode: http.StatusOK,
+			Body:       htmlBody,
+		},
+	})
+
+	opts := testutils.NewCrawlerOptions(pageURL, 1, client)
+	result, err := crawler.Analyze(context.Background(), opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	report, err := testutils.ParseReport(result)
+	require.NoError(t, err)
+	require.Len(t, report.Pages, 1)
+
+	page := report.Pages[0]
+	require.NotNil(t, page.SEO)
+	assert.False(t, page.SEO.HasTitle)
+	assert.Empty(t, page.SEO.Title)
+	assert.False(t, page.SEO.HasDescription)
+	assert.Empty(t, page.SEO.Description)
+	assert.False(t, page.SEO.HasH1)
+}
+
 func TestAnalyzeRequiresHTTPClient(t *testing.T) {
 	opts := testutils.NewCrawlerOptions("https://example.com", 1, nil)
 
