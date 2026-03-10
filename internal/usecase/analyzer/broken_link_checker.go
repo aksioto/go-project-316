@@ -10,14 +10,16 @@ import (
 )
 
 type BrokenLinkChecker struct {
-	logger  *zap.Logger
-	fetcher Fetcher
+	logger      *zap.Logger
+	fetcher     Fetcher
+	rateLimiter *RateLimiter
 }
 
-func NewBrokenLinkChecker(logger *zap.Logger, fetcher Fetcher) *BrokenLinkChecker {
+func NewBrokenLinkChecker(logger *zap.Logger, fetcher Fetcher, rateLimiter *RateLimiter) *BrokenLinkChecker {
 	return &BrokenLinkChecker{
-		logger:  logger,
-		fetcher: fetcher,
+		logger:      logger,
+		fetcher:     fetcher,
+		rateLimiter: rateLimiter,
 	}
 }
 
@@ -30,6 +32,10 @@ func (c *BrokenLinkChecker) Check(ctx context.Context, links []domain.Link) []do
 
 	broken := make([]domain.BrokenLink, 0, len(links))
 	for _, link := range links {
+		if err := c.rateLimiter.Wait(ctx); err != nil {
+			return broken
+		}
+
 		result, err := c.fetcher.Fetch(ctx, link.URL)
 		if err != nil {
 			c.logger.Debug("broken link (error)",

@@ -19,6 +19,7 @@ type Options struct {
 	Retries     int
 	Delay       time.Duration
 	Timeout     time.Duration
+	RPS         float64
 	UserAgent   string
 	Concurrency int
 	IndentJSON  bool
@@ -37,6 +38,7 @@ func Analyze(ctx context.Context, opts Options) ([]byte, error) {
 		Retries:     opts.Retries,
 		Delay:       opts.Delay,
 		Timeout:     opts.Timeout,
+		RPS:         opts.RPS,
 		UserAgent:   opts.UserAgent,
 		Concurrency: opts.Concurrency,
 	}

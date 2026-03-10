@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"time"
+
+	"go.uber.org/zap"
 
 	"code/crawler"
 
@@ -86,7 +87,11 @@ func main() {
 			if err != nil {
 				return err
 			}
-			defer logger.Sync()
+			defer func() {
+				if syncErr := logger.Sync(); syncErr != nil {
+					fmt.Fprintf(os.Stderr, "logger sync error: %v\n", syncErr)
+				}
+			}()
 
 			opts := crawler.Options{
 				URL:         url,
@@ -94,6 +99,7 @@ func main() {
 				Retries:     c.Int("retries"),
 				Delay:       c.Duration("delay"),
 				Timeout:     c.Duration("timeout"),
+				RPS:         c.Float64("rps"),
 				UserAgent:   userAgent,
 				Concurrency: c.Int("workers"),
 				IndentJSON:  true,

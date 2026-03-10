@@ -16,6 +16,7 @@ type Options struct {
 	Retries     int
 	Delay       time.Duration
 	Timeout     time.Duration
+	RPS         float64
 	UserAgent   string
 	Concurrency int
 }
@@ -31,6 +32,7 @@ type Analyzer struct {
 	linkExtractor     *LinkExtractor
 	brokenLinkChecker *BrokenLinkChecker
 	seoAnalyzer       *SEOAnalyzer
+	rateLimiter       *RateLimiter
 	opts              Options
 }
 
@@ -46,14 +48,16 @@ func NewDefaultAnalyzer(logger *zap.Logger, fetcher Fetcher, opts Options) *Anal
 
 	contentTypeFilter := NewContentTypeFilter()
 	pageFetcher := NewPageFetcher(logger, fetcher, contentTypeFilter)
+	rateLimiter := NewRateLimiter(opts.Delay, opts.RPS)
 
 	return &Analyzer{
 		logger:            logger,
 		pageFetcher:       pageFetcher,
 		domainFilter:      NewDomainFilter(),
 		linkExtractor:     NewLinkExtractor(),
-		brokenLinkChecker: NewBrokenLinkChecker(logger, fetcher),
+		brokenLinkChecker: NewBrokenLinkChecker(logger, fetcher, rateLimiter),
 		seoAnalyzer:       NewSEOAnalyzer(logger),
+		rateLimiter:       rateLimiter,
 		opts:              opts,
 	}
 }
@@ -90,6 +94,10 @@ func (a *Analyzer) Analyze(ctx context.Context) domain.Report {
 
 		item := queue[0]
 		queue = queue[1:]
+
+		if err := a.rateLimiter.Wait(ctx); err != nil {
+			break
+		}
 
 		page, links, shouldAdd := a.processPage(ctx, item)
 		if shouldAdd {

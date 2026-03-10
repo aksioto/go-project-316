@@ -93,3 +93,40 @@ With `--depth=1`, only the start page will be crawled.
 - Only **internal links** (same domain) are followed
 - External links are checked for broken status but not crawled
 - Duplicate URLs are automatically deduplicated (e.g., `/page` and `/page/index.html` are treated as the same page)
+
+## Rate Limiting
+
+The crawler supports two ways to control request frequency:
+
+### Using `--delay`
+
+Sets a fixed delay between consecutive HTTP requests:
+
+```bash
+bin/hexlet-go-crawler --delay=200ms https://example.com
+```
+
+### Using `--rps`
+
+Sets the maximum requests per second. When specified, `--rps` **overrides** `--delay`:
+
+```bash
+bin/hexlet-go-crawler --rps=5 https://example.com
+```
+
+This limits the crawler to 5 requests per second (200ms between requests).
+
+### Behavior
+
+| Parameter | Effect |
+|-----------|--------|
+| Neither set | No rate limiting, maximum speed |
+| `--delay=200ms` | 200ms pause between each request |
+| `--rps=10` | ~100ms between requests (10 req/sec) |
+| Both set | `--rps` takes priority |
+
+### Important
+
+- Rate limiting applies to **all** HTTP requests (page fetches and broken link checks)
+- Context cancellation immediately stops waiting, no hang on shutdown
+- The interval is measured from the start of each request

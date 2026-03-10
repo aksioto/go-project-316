@@ -28,6 +28,9 @@ func (f ContentTypeFilter) IsHTML(contentType string) bool {
 		return false
 	}
 
-	mediaType, _, _ := mime.ParseMediaType(contentType)
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return false
+	}
 	return mediaType == mimeTextHTML || mediaType == mimeXHTML
 }

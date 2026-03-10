@@ -3,7 +3,10 @@ package crawler_test
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -416,6 +419,169 @@ func TestAnalyzeRequiresHTTPClient(t *testing.T) {
 
 	_, err := crawler.Analyze(context.Background(), opts)
 	require.Error(t, err)
+}
+
+func TestAnalyzeWithRateLimit(t *testing.T) {
+	const rootURL = "http://example.com/"
+	const childURL = "http://example.com/child"
+	const htmlBody = `<!doctype html>
+<html>
+  <head><title>Root</title></head>
+  <body>
+    <a href="/child">Child</a>
+  </body>
+</html>`
+
+	var requestTimes []time.Time
+	var mu sync.Mutex
+
+	client := &http.Client{
+		Transport: testutils.RoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			mu.Lock()
+			requestTimes = append(requestTimes, time.Now())
+			mu.Unlock()
+
+			body := htmlBody
+			if req.URL.String() == childURL {
+				body = "<html><head><title>Child</title></head><body><h1>Child</h1></body></html>"
+			}
+
+			headers := make(http.Header)
+			headers.Set("Content-Type", "text/html; charset=utf-8")
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     headers,
+				Request:    req,
+			}, nil
+		}),
+	}
+
+	opts := crawler.Options{
+		URL:        rootURL,
+		Depth:      2,
+		Delay:      50 * time.Millisecond,
+		Timeout:    5 * time.Second,
+		HTTPClient: client,
+		IndentJSON: false,
+	}
+
+	result, err := crawler.Analyze(context.Background(), opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	report, err := testutils.ParseReport(result)
+	require.NoError(t, err)
+	require.Len(t, report.Pages, 2)
+
+	require.GreaterOrEqual(t, len(requestTimes), 2, "should have at least 2 page requests")
+
+	for i := 1; i < len(requestTimes); i++ {
+		interval := requestTimes[i].Sub(requestTimes[i-1])
+		assert.GreaterOrEqual(t, interval, 40*time.Millisecond,
+			"interval between requests should respect delay")
+	}
+}
+
+func TestAnalyzeWithRPS(t *testing.T) {
+	const rootURL = "http://example.com/"
+	const htmlBody = `<!doctype html>
+<html>
+  <head><title>Root</title></head>
+  <body>
+    <a href="/page1">Page 1</a>
+    <a href="/page2">Page 2</a>
+  </body>
+</html>`
+
+	var requestTimes []time.Time
+	var mu sync.Mutex
+
+	client := &http.Client{
+		Transport: testutils.RoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			mu.Lock()
+			requestTimes = append(requestTimes, time.Now())
+			mu.Unlock()
+
+			headers := make(http.Header)
+			headers.Set("Content-Type", "text/html; charset=utf-8")
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(htmlBody)),
+				Header:     headers,
+				Request:    req,
+			}, nil
+		}),
+	}
+
+	opts := crawler.Options{
+		URL:        rootURL,
+		Depth:      2,
+		RPS:        10,
+		Timeout:    5 * time.Second,
+		HTTPClient: client,
+		IndentJSON: false,
+	}
+
+	result, err := crawler.Analyze(context.Background(), opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	expectedInterval := 100 * time.Millisecond
+
+	require.GreaterOrEqual(t, len(requestTimes), 2, "should have at least 2 requests")
+
+	for i := 1; i < len(requestTimes); i++ {
+		interval := requestTimes[i].Sub(requestTimes[i-1])
+		assert.GreaterOrEqual(t, interval, expectedInterval-10*time.Millisecond,
+			"interval between requests should respect RPS limit")
+	}
+}
+
+func TestAnalyzeWithContextCancel(t *testing.T) {
+	const rootURL = "http://example.com/"
+	const htmlBody = `<!doctype html>
+<html>
+  <head><title>Root</title></head>
+  <body>
+    <a href="/page1">Page 1</a>
+  </body>
+</html>`
+
+	client := testutils.NewStubClient(map[string]testutils.StubResponse{
+		rootURL:                    {StatusCode: http.StatusOK, Body: htmlBody},
+		"http://example.com/page1": {StatusCode: http.StatusOK, Body: htmlBody},
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	opts := crawler.Options{
+		URL:        rootURL,
+		Depth:      3,
+		Delay:      500 * time.Millisecond,
+		Timeout:    5 * time.Second,
+		HTTPClient: client,
+		IndentJSON: false,
+	}
+
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+
+	start := time.Now()
+	result, err := crawler.Analyze(ctx, opts)
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	report, err := testutils.ParseReport(result)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(report.Pages), 1, "should have at least the root page")
+
+	assert.Less(t, elapsed, 400*time.Millisecond,
+		"should stop quickly when context is canceled")
 }
 
 func findPage(pages []testutils.Page, url string) *testutils.Page {
