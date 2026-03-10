@@ -8,18 +8,22 @@ import (
 	"code/internal/domain"
 
 	"github.com/PuerkitoBio/goquery"
+	"go.uber.org/zap"
 )
 
-type seoAnalyzer struct{}
-
-func NewSEOAnalyzer() *seoAnalyzer {
-	return &seoAnalyzer{}
+type SEOAnalyzer struct {
+	logger *zap.Logger
 }
 
-func (a *seoAnalyzer) Analyze(body []byte) domain.SEOResult {
+func NewSEOAnalyzer(logger *zap.Logger) *SEOAnalyzer {
+	return &SEOAnalyzer{logger: logger}
+}
+
+func (a *SEOAnalyzer) Analyze(body []byte) domain.SEOResult {
 	result := domain.SEOResult{}
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
+		a.logger.Debug("seo: failed to parse HTML", zap.Error(err))
 		return result
 	}
 

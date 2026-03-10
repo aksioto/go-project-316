@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture Root Page</title>
+    <meta name="description" content="Root page for crawler fixtures" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Fixture Root</h1>
+    <p>This page is used to test crawler depth, SEO extraction, and broken link detection.</p>
+
+    <section>
+      <h2>Internal Pages</h2>
+      <ul>
+        <li><a href="about.html">About</a></li>
+        <li><a href="blog.html">Blog</a></li>
+        <li><a href="plain-text.html">Plain text (no HTML tags)</a></li>
+        <li><a href="partial-title.html">Missing &lt;title&gt;</a></li>
+        <li><a href="partial-description.html">Missing meta description</a></li>
+        <li><a href="partial-h1.html">Missing &lt;h1&gt;</a></li>
+        <li><a href="/server-redirect">Server redirect via .htaccess</a></li>
+        <li><a href="#faq">Jump to FAQ (anchor)</a></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Broken & External Links</h2>
+      <ul>
+        <li><a href="missing.html">Missing internal page</a></li>
+        <li><a href="https://external.example.com/">External site</a></li>
+        <li><a href="mailto:support@example.com">Email support (mailto)</a></li>
+        <li><a href="tel:+123456789">Call support (tel)</a></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Deep Crawl</h2>
+      <p>Use these entries to test multiple levels of internal navigation.</p>
+      <ol>
+        <li><a href="nested/level1.html">Level 1 entry point</a></li>
+        <li>Level 1 links to <code>nested/level2.html</code>, which links to <code>nested/level3.html</code>.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Link Tree Overview</h2>
+      <p>The following hierarchy shows every page that can be reached from the root fixture:</p>
+      <ul>
+        <li>
+          <strong>index.html</strong>
+          <ul>
+            <li>about.html</li>
+            <li>blog.html</li>
+            <li>
+              <strong>nested</strong>
+              <ul>
+                <li>
+                  level1.html
+                  <ul>
+                    <li>
+                      level2.html
+                      <ul>
+                        <li>level3.html</li>
+                      </ul>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li><em>missing.html</em> (broken example)</li>
+            <li>plain-text.html (no HTML tags)</li>
+            <li>partial-title.html (missing title)</li>
+            <li>partial-description.html (missing meta description)</li>
+            <li>partial-h1.html (missing h1)</li>
+            <li>/server-redirect (Apache redirect)</li>
+            <li>mailto link</li>
+            <li>tel link</li>
+            <li>#faq anchor</li>
+            <li>external link</li>
+          </ul>
+        </li>
+      </ul>
+    </section>
+
+    <section id="faq">
+      <h2>FAQ Anchor Target</h2>
+      <p>This anchor section is used to ensure that hash links remain inside the same page.</p>
+    </section>
+  </body>
+</html>

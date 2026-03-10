@@ -42,7 +42,8 @@ func (c *Client) Fetch(ctx context.Context, url string) (domain.FetchResult, err
 	}
 
 	return domain.FetchResult{
-		StatusCode: resp.StatusCode,
-		Body:       body,
+		StatusCode:  resp.StatusCode,
+		Body:        body,
+		ContentType: resp.Header.Get("Content-Type"),
 	}, nil
 }

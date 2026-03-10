@@ -2,9 +2,12 @@ package analyzer
 
 import (
 	"context"
+	"net/url"
 	"time"
 
 	"code/internal/domain"
+
+	"go.uber.org/zap"
 )
 
 type Options struct {
@@ -21,37 +24,46 @@ type Fetcher interface {
 	Fetch(ctx context.Context, url string) (domain.FetchResult, error)
 }
 
-type LinkExtractor interface {
-	Extract(baseURL string, body []byte) []domain.Link
-}
-
-type BrokenLinkChecker interface {
-	Check(ctx context.Context, links []domain.Link) []domain.BrokenLink
-}
-
-type SEOAnalyzer interface {
-	Analyze(body []byte) domain.SEOResult
-}
-
 type Analyzer struct {
-	fetcher           Fetcher
+	logger            *zap.Logger
+	pageFetcher       PageFetcher
+	domainFilter      DomainFilter
+	linkExtractor     *LinkExtractor
+	brokenLinkChecker *BrokenLinkChecker
+	seoAnalyzer       *SEOAnalyzer
 	opts              Options
-	linkExtractor     LinkExtractor
-	brokenLinkChecker BrokenLinkChecker
-	seoAnalyzer       SEOAnalyzer
 }
 
-func NewAnalyzer(fetcher Fetcher, extractor LinkExtractor, checker BrokenLinkChecker, seoAnalyzer SEOAnalyzer, opts Options) *Analyzer {
+type queueItem struct {
+	url   string
+	depth int
+}
+
+func NewDefaultAnalyzer(logger *zap.Logger, fetcher Fetcher, opts Options) *Analyzer {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
+	contentTypeFilter := NewContentTypeFilter()
+	pageFetcher := NewPageFetcher(logger, fetcher, contentTypeFilter)
+
 	return &Analyzer{
-		fetcher:           fetcher,
-		linkExtractor:     extractor,
-		brokenLinkChecker: checker,
-		seoAnalyzer:       seoAnalyzer,
+		logger:            logger,
+		pageFetcher:       pageFetcher,
+		domainFilter:      NewDomainFilter(),
+		linkExtractor:     NewLinkExtractor(),
+		brokenLinkChecker: NewBrokenLinkChecker(logger, fetcher),
+		seoAnalyzer:       NewSEOAnalyzer(logger),
 		opts:              opts,
 	}
 }
 
 func (a *Analyzer) Analyze(ctx context.Context) domain.Report {
+	a.logger.Debug("starting analysis",
+		zap.String("url", a.opts.URL),
+		zap.Int("max_depth", a.opts.Depth),
+	)
+
 	report := domain.Report{
 		RootURL:     a.opts.URL,
 		MaxDepth:    a.opts.Depth,
@@ -59,30 +71,81 @@ func (a *Analyzer) Analyze(ctx context.Context) domain.Report {
 		Pages:       []domain.Page{},
 	}
 
-	page := a.fetchPage(ctx, a.opts.URL, 0)
-	report.Pages = append(report.Pages, page)
+	root, err := url.Parse(a.opts.URL)
+	if err != nil {
+		a.logger.Debug("failed to parse root URL", zap.Error(err))
+		result := a.pageFetcher.Fetch(ctx, a.opts.URL, 0)
+		report.Pages = append(report.Pages, result.Page)
+		return report
+	}
+
+	startURL := NormalizeURL(a.opts.URL)
+	queue := []queueItem{{url: startURL, depth: 0}}
+	visited := map[string]struct{}{startURL: {}}
+
+	for len(queue) > 0 {
+		if ctx.Err() != nil {
+			break
+		}
+
+		item := queue[0]
+		queue = queue[1:]
+
+		page, links, shouldAdd := a.processPage(ctx, item)
+		if shouldAdd {
+			report.Pages = append(report.Pages, page)
+		}
+
+		if item.depth+1 < a.opts.Depth {
+			queue = a.enqueueLinks(root, links, item.depth+1, visited, queue)
+		}
+	}
+
+	a.logger.Debug("analysis completed",
+		zap.Int("pages_found", len(report.Pages)),
+	)
 
 	return report
 }
 
-func (a *Analyzer) fetchPage(ctx context.Context, url string, depth int) domain.Page {
-	page := domain.Page{
-		URL:   url,
-		Depth: depth,
+func (a *Analyzer) processPage(ctx context.Context, item queueItem) (domain.Page, []domain.Link, bool) {
+	result := a.pageFetcher.Fetch(ctx, item.url, item.depth)
+	page := result.Page
+
+	isStartPage := item.depth == 0
+	hasError := page.Err != nil || (page.StatusCode >= 400 && page.StatusCode < 600)
+
+	if !result.IsHTML {
+		return page, nil, isStartPage && hasError
 	}
 
-	result, err := a.fetcher.Fetch(ctx, url)
-	if err != nil {
-		page.Err = err
-		return page
-	}
-
-	page.StatusCode = result.StatusCode
-	links := a.linkExtractor.Extract(url, result.Body)
+	links := a.linkExtractor.Extract(item.url, result.Body)
 	page.BrokenLinks = a.brokenLinkChecker.Check(ctx, links)
 	seo := a.seoAnalyzer.Analyze(result.Body)
 	page.SEO = &seo
-	// TODO: SEO, Assets
 
-	return page
+	return page, links, true
+}
+
+func (a *Analyzer) enqueueLinks(
+	root *url.URL,
+	links []domain.Link,
+	depth int,
+	visited map[string]struct{},
+	queue []queueItem,
+) []queueItem {
+	for _, link := range links {
+		normalizedURL := NormalizeURL(link.URL)
+
+		if !a.domainFilter.IsSameDomain(root, normalizedURL) {
+			continue
+		}
+		if _, seen := visited[normalizedURL]; seen {
+			continue
+		}
+
+		visited[normalizedURL] = struct{}{}
+		queue = append(queue, queueItem{url: normalizedURL, depth: depth})
+	}
+	return queue
 }

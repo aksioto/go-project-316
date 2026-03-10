@@ -24,10 +24,12 @@ func NewErrorClient(err error) *http.Client {
 func NewResponseClient(status int, body string) *http.Client {
 	return &http.Client{
 		Transport: RoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			headers := make(http.Header)
+			headers.Set("Content-Type", "text/html; charset=utf-8")
 			return &http.Response{
 				StatusCode: status,
 				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     make(http.Header),
+				Header:     headers,
 				Request:    req,
 			}, nil
 		}),
@@ -44,9 +46,10 @@ func NewTimeoutClient() *http.Client {
 }
 
 type StubResponse struct {
-	StatusCode int
-	Body       string
-	Err        error
+	StatusCode  int
+	Body        string
+	Err         error
+	ContentType string
 }
 
 func NewStubClient(responses map[string]StubResponse) *http.Client {
@@ -59,10 +62,16 @@ func NewStubClient(responses map[string]StubResponse) *http.Client {
 			if resp.Err != nil {
 				return nil, resp.Err
 			}
+			contentType := resp.ContentType
+			if strings.TrimSpace(contentType) == "" {
+				contentType = "text/html; charset=utf-8"
+			}
+			headers := make(http.Header)
+			headers.Set("Content-Type", contentType)
 			return &http.Response{
 				StatusCode: resp.StatusCode,
 				Body:       io.NopCloser(strings.NewReader(resp.Body)),
-				Header:     make(http.Header),
+				Header:     headers,
 				Request:    req,
 			}, nil
 		}),

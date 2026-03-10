@@ -10,13 +10,13 @@ import (
 	"golang.org/x/net/html"
 )
 
-type linkExtractor struct{}
+type LinkExtractor struct{}
 
-func NewLinkExtractor() *linkExtractor {
-	return &linkExtractor{}
+func NewLinkExtractor() *LinkExtractor {
+	return &LinkExtractor{}
 }
 
-func (e *linkExtractor) Extract(pageURL string, body []byte) []domain.Link {
+func (e *LinkExtractor) Extract(pageURL string, body []byte) []domain.Link {
 	base, err := url.Parse(pageURL)
 	if err != nil {
 		return nil
@@ -93,5 +93,5 @@ func resolveLink(base *url.URL, raw string) (string, bool) {
 		return "", false
 	}
 
-	return parsed.String(), true
+	return NormalizeURL(parsed.String()), true
 }

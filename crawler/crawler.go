@@ -1,7 +1,6 @@
 package crawler
 
 import (
-	"code/internal/usecase/analyzer"
 	"context"
 	"fmt"
 	"net/http"
@@ -9,6 +8,9 @@ import (
 
 	"code/internal/infrastructure/httpclient"
 	"code/internal/presenter"
+	"code/internal/usecase/analyzer"
+
+	"go.uber.org/zap"
 )
 
 type Options struct {
@@ -21,6 +23,7 @@ type Options struct {
 	Concurrency int
 	IndentJSON  bool
 	HTTPClient  *http.Client
+	Logger      *zap.Logger
 }
 
 func Analyze(ctx context.Context, opts Options) ([]byte, error) {
@@ -39,7 +42,7 @@ func Analyze(ctx context.Context, opts Options) ([]byte, error) {
 	}
 
 	fetcher := httpclient.New(opts.HTTPClient, opts.UserAgent)
-	defaultAnalyzer := analyzer.NewDefaultAnalyzer(fetcher, usecaseOpts)
+	defaultAnalyzer := analyzer.NewDefaultAnalyzer(opts.Logger, fetcher, usecaseOpts)
 	report := defaultAnalyzer.Analyze(ctx)
 
 	jsonPresenter := presenter.NewJSONPresenter(opts.IndentJSON)

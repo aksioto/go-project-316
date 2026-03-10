@@ -67,3 +67,29 @@ go run ./cmd/hexlet-go-crawler --help
 | `--rps` | Requests per second limit | 0 |
 | `--user-agent` | Custom User-Agent | - |
 | `--workers` | Number of workers | 4 |
+
+## Depth Parameter
+
+The `--depth` parameter controls how many levels of links the crawler will follow:
+
+- **depth=1**: Only the start page is analyzed (no links are followed)
+- **depth=2**: Start page + pages linked directly from it
+- **depth=N**: Pages up to N-1 clicks away from the start page
+
+### Example
+
+```text
+Start Page (depth 0)
+├── /about (depth 1)
+│   └── /about/team (depth 2)
+└── /contact (depth 1)
+```
+
+With `--depth=2`, all pages above will be crawled.  
+With `--depth=1`, only the start page will be crawled.
+
+### Notes
+
+- Only **internal links** (same domain) are followed
+- External links are checked for broken status but not crawled
+- Duplicate URLs are automatically deduplicated (e.g., `/page` and `/page/index.html` are treated as the same page)

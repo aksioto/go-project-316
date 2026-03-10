@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"time"
@@ -12,7 +13,17 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const (
+	EnvDevelopment = "dev"
+	EnvProduction  = "prod"
+)
+
 func main() {
+	environment, ok := os.LookupEnv("ENV")
+	if !ok {
+		environment = EnvProduction
+	}
+
 	app := &cli.App{
 		Name:      "hexlet-go-crawler",
 		Usage:     "analyze a website structure",
@@ -65,6 +76,18 @@ func main() {
 				Timeout: c.Duration("timeout"),
 			}
 
+			var logger *zap.Logger
+			var err error
+			if environment == EnvDevelopment {
+				logger, err = zap.NewDevelopment()
+			} else {
+				logger, err = zap.NewProduction()
+			}
+			if err != nil {
+				return err
+			}
+			defer logger.Sync()
+
 			opts := crawler.Options{
 				URL:         url,
 				Depth:       c.Int("depth"),
@@ -75,6 +98,7 @@ func main() {
 				Concurrency: c.Int("workers"),
 				IndentJSON:  true,
 				HTTPClient:  httpClient,
+				Logger:      logger,
 			}
 
 			result, err := crawler.Analyze(context.Background(), opts)
