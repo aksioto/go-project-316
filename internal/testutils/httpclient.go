@@ -52,6 +52,12 @@ type StubResponse struct {
 	ContentType string
 }
 
+func NewStubClientFunc(fn func(*http.Request) (*http.Response, error)) *http.Client {
+	return &http.Client{
+		Transport: RoundTripFunc(fn),
+	}
+}
+
 func NewStubClient(responses map[string]StubResponse) *http.Client {
 	return &http.Client{
 		Transport: RoundTripFunc(func(req *http.Request) (*http.Response, error) {

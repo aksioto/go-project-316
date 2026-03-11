@@ -602,3 +602,112 @@ func countPages(pages []testutils.Page, url string) int {
 	}
 	return count
 }
+
+func TestAnalyzeWithRetry_SuccessAfterFailure(t *testing.T) {
+	var mu sync.Mutex
+	callCount := 0
+
+	stubClient := testutils.NewStubClientFunc(func(req *http.Request) (*http.Response, error) {
+		mu.Lock()
+		callCount++
+		currentCall := callCount
+		mu.Unlock()
+
+		if currentCall == 1 {
+			return &http.Response{
+				StatusCode: http.StatusServiceUnavailable,
+				Body:       io.NopCloser(strings.NewReader("Service Unavailable")),
+				Header:     http.Header{"Content-Type": []string{"text/html"}},
+			}, nil
+		}
+
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("<html><head><title>Test</title></head><body></body></html>")),
+			Header:     http.Header{"Content-Type": []string{"text/html"}},
+		}, nil
+	})
+
+	opts := testutils.NewCrawlerOptions("http://example.com", 1, stubClient)
+	opts.Retries = 2
+
+	result, err := crawler.Analyze(context.Background(), opts)
+	require.NoError(t, err)
+
+	report, err := testutils.ParseReport(result)
+	require.NoError(t, err)
+
+	require.Len(t, report.Pages, 1)
+	assert.Equal(t, http.StatusOK, report.Pages[0].HTTPStatus, "should succeed after retry")
+
+	mu.Lock()
+	assert.Equal(t, 2, callCount, "should have made 2 requests (1 fail + 1 success)")
+	mu.Unlock()
+}
+
+func TestAnalyzeWithRetry_ExhaustedRetries(t *testing.T) {
+	var mu sync.Mutex
+	callCount := 0
+
+	stubClient := testutils.NewStubClientFunc(func(req *http.Request) (*http.Response, error) {
+		mu.Lock()
+		callCount++
+		mu.Unlock()
+
+		return &http.Response{
+			StatusCode: http.StatusServiceUnavailable,
+			Body:       io.NopCloser(strings.NewReader("Service Unavailable")),
+			Header:     http.Header{"Content-Type": []string{"text/html"}},
+		}, nil
+	})
+
+	opts := testutils.NewCrawlerOptions("http://example.com", 1, stubClient)
+	opts.Retries = 2
+
+	result, err := crawler.Analyze(context.Background(), opts)
+	require.NoError(t, err)
+
+	report, err := testutils.ParseReport(result)
+	require.NoError(t, err)
+
+	require.Len(t, report.Pages, 1)
+	assert.Equal(t, http.StatusServiceUnavailable, report.Pages[0].HTTPStatus,
+		"should report last failed status after exhausting retries")
+
+	mu.Lock()
+	assert.Equal(t, 3, callCount, "should have made retries+1 requests")
+	mu.Unlock()
+}
+
+func TestAnalyzeWithRetry_NoRetryOn404(t *testing.T) {
+	var mu sync.Mutex
+	callCount := 0
+
+	stubClient := testutils.NewStubClientFunc(func(req *http.Request) (*http.Response, error) {
+		mu.Lock()
+		callCount++
+		mu.Unlock()
+
+		return &http.Response{
+			StatusCode: http.StatusNotFound,
+			Body:       io.NopCloser(strings.NewReader("Not Found")),
+			Header:     http.Header{"Content-Type": []string{"text/html"}},
+		}, nil
+	})
+
+	opts := testutils.NewCrawlerOptions("http://example.com", 1, stubClient)
+	opts.Retries = 3
+
+	result, err := crawler.Analyze(context.Background(), opts)
+	require.NoError(t, err)
+
+	report, err := testutils.ParseReport(result)
+	require.NoError(t, err)
+
+	require.Len(t, report.Pages, 1)
+	assert.Equal(t, http.StatusNotFound, report.Pages[0].HTTPStatus)
+
+	mu.Lock()
+	assert.Equal(t, 1, callCount, "should not retry on 404")
+	mu.Unlock()
+}

@@ -46,8 +46,9 @@ func NewDefaultAnalyzer(logger *zap.Logger, fetcher Fetcher, opts Options) *Anal
 		logger = zap.NewNop()
 	}
 
+	retryFetcher := NewRetryFetcher(logger, fetcher, opts.Retries)
 	contentTypeFilter := NewContentTypeFilter()
-	pageFetcher := NewPageFetcher(logger, fetcher, contentTypeFilter)
+	pageFetcher := NewPageFetcher(logger, retryFetcher, contentTypeFilter)
 	rateLimiter := NewRateLimiter(opts.Delay, opts.RPS)
 
 	return &Analyzer{
@@ -55,7 +56,7 @@ func NewDefaultAnalyzer(logger *zap.Logger, fetcher Fetcher, opts Options) *Anal
 		pageFetcher:       pageFetcher,
 		domainFilter:      NewDomainFilter(),
 		linkExtractor:     NewLinkExtractor(),
-		brokenLinkChecker: NewBrokenLinkChecker(logger, fetcher, rateLimiter),
+		brokenLinkChecker: NewBrokenLinkChecker(logger, retryFetcher, rateLimiter),
 		seoAnalyzer:       NewSEOAnalyzer(logger),
 		rateLimiter:       rateLimiter,
 		opts:              opts,

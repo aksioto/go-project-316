@@ -130,3 +130,43 @@ This limits the crawler to 5 requests per second (200ms between requests).
 - Rate limiting applies to **all** HTTP requests (page fetches and broken link checks)
 - Context cancellation immediately stops waiting, no hang on shutdown
 - The interval is measured from the start of each request
+
+## Retries
+
+The crawler automatically retries failed requests for temporary errors.
+
+### Usage
+
+```bash
+bin/hexlet-go-crawler --retries=3 https://example.com
+```
+
+### Retryable Conditions
+
+Retries are performed only for **temporary errors**:
+
+| Type | Codes/Errors |
+|------|--------------|
+| HTTP status | 429 (Too Many Requests), 500, 502, 503, 504 |
+| Network | Connection timeouts, temporary network failures |
+
+**Non-retryable** errors (e.g., 404 Not Found, 403 Forbidden) are reported immediately.
+
+### Retry Logic
+
+- **Total attempts** = `retries + 1` (initial request + retry attempts)
+- **Delay between retries**: 100ms (prevents request bursts)
+- **Report result**: reflects the **last** attempt (success or failure)
+
+### Examples
+
+| Scenario | Retries | Attempts | Result |
+|----------|---------|----------|--------|
+| Success on first try | 2 | 1 | Success |
+| 503 → 503 → 200 | 2 | 3 | Success |
+| 503 → 503 → 503 | 2 | 3 | Error (503) |
+| 404 | 2 | 1 | Error (404, no retry) |
+
+### Context Cancellation
+
+If the context is canceled during retry wait, the crawler stops immediately without hanging.
