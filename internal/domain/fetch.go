@@ -1,7 +1,8 @@
 package domain
 
 type FetchResult struct {
-	StatusCode  int
-	Body        []byte
-	ContentType string
+	StatusCode    int
+	Body          []byte
+	ContentType   string
+	ContentLength int64
 }

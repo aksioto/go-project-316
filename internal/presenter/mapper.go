@@ -73,10 +73,11 @@ func mapAssets(assets []domain.Asset) []AssetDTO {
 	result := make([]AssetDTO, 0, len(assets))
 	for _, a := range assets {
 		result = append(result, AssetDTO{
-			URL:    a.URL,
-			Type:   string(a.Type),
-			Size:   a.Size,
-			Status: a.StatusCode,
+			URL:        a.URL,
+			Type:       string(a.Type),
+			StatusCode: a.StatusCode,
+			SizeBytes:  a.SizeBytes,
+			Error:      a.Error,
 		})
 	}
 	return result

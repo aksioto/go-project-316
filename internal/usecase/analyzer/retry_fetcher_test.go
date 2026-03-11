@@ -124,7 +124,7 @@ func TestRetryFetcher_NoRetryOn404(t *testing.T) {
 }
 
 func TestRetryFetcher_RetryOnNetworkError(t *testing.T) {
-	networkErr := &mockNetError{temporary: true}
+	networkErr := &mockNetError{timeout: true}
 	mock := &mockFetcher{
 		responses: []mockResponse{
 			{err: networkErr},

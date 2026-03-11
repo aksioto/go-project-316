@@ -32,6 +32,7 @@ type Analyzer struct {
 	linkExtractor     *LinkExtractor
 	brokenLinkChecker *BrokenLinkChecker
 	seoAnalyzer       *SEOAnalyzer
+	assetChecker      *AssetChecker
 	rateLimiter       *RateLimiter
 	opts              Options
 }
@@ -50,6 +51,7 @@ func NewDefaultAnalyzer(logger *zap.Logger, fetcher Fetcher, opts Options) *Anal
 	contentTypeFilter := NewContentTypeFilter()
 	pageFetcher := NewPageFetcher(logger, retryFetcher, contentTypeFilter)
 	rateLimiter := NewRateLimiter(opts.Delay, opts.RPS)
+	assetExtractor := NewAssetExtractor()
 
 	return &Analyzer{
 		logger:            logger,
@@ -58,6 +60,7 @@ func NewDefaultAnalyzer(logger *zap.Logger, fetcher Fetcher, opts Options) *Anal
 		linkExtractor:     NewLinkExtractor(),
 		brokenLinkChecker: NewBrokenLinkChecker(logger, retryFetcher, rateLimiter),
 		seoAnalyzer:       NewSEOAnalyzer(logger),
+		assetChecker:      NewAssetChecker(logger, retryFetcher, rateLimiter, assetExtractor),
 		rateLimiter:       rateLimiter,
 		opts:              opts,
 	}
@@ -130,6 +133,7 @@ func (a *Analyzer) processPage(ctx context.Context, item queueItem) (domain.Page
 
 	links := a.linkExtractor.Extract(item.url, result.Body)
 	page.BrokenLinks = a.brokenLinkChecker.Check(ctx, links)
+	page.Assets = a.assetChecker.Check(ctx, item.url, result.Body)
 	seo := a.seoAnalyzer.Analyze(result.Body)
 	page.SEO = &seo
 

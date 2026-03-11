@@ -170,3 +170,45 @@ Retries are performed only for **temporary errors**:
 ### Context Cancellation
 
 If the context is canceled during retry wait, the crawler stops immediately without hanging.
+
+## Assets
+
+The crawler collects information about static assets (images, scripts, stylesheets) on each page.
+
+### Asset Structure
+
+Each asset in the report contains:
+
+```json
+{
+  "url": "https://example.com/static/logo.png",
+  "type": "image",
+  "status_code": 200,
+  "size_bytes": 12345,
+  "error": ""
+}
+```
+
+### Supported Types
+
+| Type | Elements |
+|------|----------|
+| `image` | `<img src="...">` |
+| `script` | `<script src="...">` |
+| `style` | `<link rel="stylesheet" href="...">` |
+
+### Size Detection
+
+- If the server provides `Content-Length` header, it is used directly
+- Otherwise, size is calculated from the response body
+- If size cannot be determined, `size_bytes` is `0`
+
+### Caching
+
+Assets are cached by URL. If the same asset appears on multiple pages, it is fetched only once. This reduces network requests and ensures consistent data across pages.
+
+### Error Handling
+
+- HTTP errors (4xx, 5xx) are reported with `status_code` and `error` message
+- Network errors are reported in the `error` field
+- All fields are always present, even on errors
