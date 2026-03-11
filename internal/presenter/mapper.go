@@ -22,10 +22,12 @@ func MapReport(r domain.Report) ReportDTO {
 
 func mapPage(p domain.Page) PageDTO {
 	dto := PageDTO{
-		URL:        p.URL,
-		Depth:      p.Depth,
-		HTTPStatus: p.StatusCode,
-		Status:     statusFromError(p.Err),
+		URL:         p.URL,
+		Depth:       p.Depth,
+		HTTPStatus:  p.StatusCode,
+		Status:      statusFromError(p.Err),
+		BrokenLinks: make([]BrokenLinkDTO, 0),
+		Assets:      make([]AssetDTO, 0),
 	}
 
 	if p.Err != nil {
@@ -45,8 +47,7 @@ func mapPage(p domain.Page) PageDTO {
 	}
 
 	if !p.DiscoveredAt.IsZero() {
-		t := p.DiscoveredAt.Format(time.RFC3339)
-		dto.DiscoveredAt = &t
+		dto.DiscoveredAt = p.DiscoveredAt.Format(time.RFC3339)
 	}
 
 	return dto
@@ -87,10 +88,8 @@ func mapBrokenLinks(links []domain.BrokenLink) []BrokenLinkDTO {
 	result := make([]BrokenLinkDTO, 0, len(links))
 	for _, l := range links {
 		dto := BrokenLinkDTO{
-			URL: l.URL,
-		}
-		if l.StatusCode != 0 {
-			dto.StatusCode = l.StatusCode
+			URL:        l.URL,
+			StatusCode: l.StatusCode,
 		}
 		if l.Err != nil {
 			dto.Error = l.Err.Error()

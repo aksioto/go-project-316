@@ -212,3 +212,77 @@ Assets are cached by URL. If the same asset appears on multiple pages, it is fet
 - HTTP errors (4xx, 5xx) are reported with `status_code` and `error` message
 - Network errors are reported in the `error` field
 - All fields are always present, even on errors
+
+## JSON Report Format
+
+The crawler outputs a JSON report with the following structure:
+
+```json
+{
+  "root_url": "https://example.com",
+  "depth": 1,
+  "generated_at": "2024-06-01T12:34:56Z",
+  "pages": [
+    {
+      "url": "https://example.com",
+      "depth": 0,
+      "http_status": 200,
+      "status": "ok",
+      "error": "",
+      "seo": {
+        "has_title": true,
+        "title": "Example title",
+        "has_description": true,
+        "description": "Example description",
+        "has_h1": true
+      },
+      "broken_links": [
+        {
+          "url": "https://example.com/missing",
+          "status_code": 404,
+          "error": "Not Found"
+        }
+      ],
+      "assets": [
+        {
+          "url": "https://example.com/static/logo.png",
+          "type": "image",
+          "status_code": 200,
+          "size_bytes": 12345,
+          "error": ""
+        }
+      ],
+      "discovered_at": "2024-06-01T12:34:56Z"
+    }
+  ]
+}
+```
+
+### Field Descriptions
+
+| Field | Description |
+|-------|-------------|
+| `root_url` | Starting URL for the crawl |
+| `depth` | Maximum crawl depth |
+| `generated_at` | Report generation timestamp (ISO8601) |
+| `pages` | Array of crawled pages |
+
+#### Page Fields
+
+| Field | Description |
+|-------|-------------|
+| `url` | Page URL |
+| `depth` | Page depth from root (0 = root) |
+| `http_status` | HTTP status code |
+| `status` | `"ok"` or `"error"` |
+| `error` | Error message (empty if none) |
+| `seo` | SEO analysis results |
+| `broken_links` | Array of broken links found |
+| `assets` | Array of static assets |
+| `discovered_at` | Page discovery timestamp (ISO8601) |
+
+### Important Notes
+
+- **All fields are always present**, even when empty (empty string `""` or empty array `[]`)
+- Time fields use ISO8601 format (RFC3339)
+- The `--indent` flag affects only formatting (whitespace), not content
