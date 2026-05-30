@@ -36,7 +36,8 @@ func (c *Client) Fetch(ctx context.Context, url string) (domain.FetchResult, err
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	const maxBodySize = 10 << 20 // 10 MB
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))
 	if err != nil {
 		return domain.FetchResult{}, err
 	}

@@ -64,6 +64,11 @@ func main() {
 				Value: 4,
 				Usage: "number of concurrent workers",
 			},
+			&cli.BoolFlag{
+				Name:  "indent",
+				Value: true,
+				Usage: "indent JSON output",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() < 1 {
@@ -102,7 +107,7 @@ func main() {
 				RPS:         c.Float64("rps"),
 				UserAgent:   userAgent,
 				Concurrency: c.Int("workers"),
-				IndentJSON:  true,
+				IndentJSON:  c.Bool("indent"),
 				HTTPClient:  httpClient,
 				Logger:      logger,
 			}

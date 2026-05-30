@@ -2,11 +2,11 @@ package domain
 
 // Asset is a static resource of the page.
 type Asset struct {
-	URL        string    `json:"url"`
-	Type       AssetType `json:"type"`
-	StatusCode int       `json:"status_code"`
-	SizeBytes  int64     `json:"size_bytes"`
-	Error      string    `json:"error"`
+	URL        string
+	Type       AssetType
+	StatusCode int
+	SizeBytes  int64
+	Error      string
 }
 
 type AssetType string

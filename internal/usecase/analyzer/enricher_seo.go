@@ -1,7 +1,7 @@
 package analyzer
 
 import (
-	"bytes"
+	"context"
 	htmlpkg "html"
 	"strings"
 
@@ -11,21 +11,16 @@ import (
 	"go.uber.org/zap"
 )
 
-type SEOAnalyzer struct {
+type SEOEnricher struct {
 	logger *zap.Logger
 }
 
-func NewSEOAnalyzer(logger *zap.Logger) *SEOAnalyzer {
-	return &SEOAnalyzer{logger: logger}
+func NewSEOEnricher(logger *zap.Logger) *SEOEnricher {
+	return &SEOEnricher{logger: logger}
 }
 
-func (a *SEOAnalyzer) Analyze(body []byte) domain.SEOResult {
+func (e *SEOEnricher) Enrich(_ context.Context, page *domain.Page, doc *goquery.Document) {
 	result := domain.SEOResult{}
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
-	if err != nil {
-		a.logger.Debug("seo: failed to parse HTML", zap.Error(err))
-		return result
-	}
 
 	if titleSelection := doc.Find("title").First(); titleSelection.Length() > 0 {
 		result.HasTitle = true
@@ -46,7 +41,7 @@ func (a *SEOAnalyzer) Analyze(body []byte) domain.SEOResult {
 
 	result.HasH1 = doc.Find("h1").Length() > 0
 
-	return result
+	page.SEO = &result
 }
 
 func cleanText(value string) string {

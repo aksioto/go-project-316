@@ -4,6 +4,16 @@ Console crawler for website analysis. It crawls a site, validates links and
 static assets, collects SEO metrics (title, meta description, h1), and produces
 a JSON report per page.
 
+## Requirements
+
+- Go 1.25+
+- GNU Make (for `make` commands)
+
+Optional (for local development quality checks):
+
+- `goimports`
+- `golangci-lint`
+
 ### Hexlet tests and linter status:
 [![Actions Status](https://github.com/aksioto/go-project-316/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/aksioto/go-project-316/actions)
 [![CI](https://github.com/aksioto/go-project-316/actions/workflows/ci.yml/badge.svg)](https://github.com/aksioto/go-project-316/actions/workflows/ci.yml)
@@ -67,6 +77,14 @@ go run ./cmd/hexlet-go-crawler --help
 | `--rps` | Requests per second limit | 0 |
 | `--user-agent` | Custom User-Agent | - |
 | `--workers` | Number of workers | 4 |
+| `--indent` | Pretty-print JSON output | true |
+
+### Logging mode
+
+The app uses the `ENV` environment variable to select logger mode:
+
+- `ENV=prod` (default): production logger
+- `ENV=dev`: development logger
 
 ## Depth Parameter
 

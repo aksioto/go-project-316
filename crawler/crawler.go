@@ -2,7 +2,7 @@ package crawler
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/http"
 	"time"
 
@@ -12,6 +12,8 @@ import (
 
 	"go.uber.org/zap"
 )
+
+var ErrHTTPClientRequired = errors.New("http client is required")
 
 type Options struct {
 	URL         string
@@ -29,7 +31,7 @@ type Options struct {
 
 func Analyze(ctx context.Context, opts Options) ([]byte, error) {
 	if opts.HTTPClient == nil {
-		return nil, fmt.Errorf("http client is required")
+		return nil, ErrHTTPClientRequired
 	}
 
 	usecaseOpts := analyzer.Options{

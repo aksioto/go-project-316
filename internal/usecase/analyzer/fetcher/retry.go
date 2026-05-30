@@ -1,8 +1,9 @@
-package analyzer
+package fetcher
 
 import (
 	"context"
 	"errors"
+	"math/rand"
 	"net"
 	"net/http"
 	"time"
@@ -14,6 +15,7 @@ import (
 
 const (
 	defaultRetryDelay = 100 * time.Millisecond
+	maxBackoff        = 5 * time.Second
 )
 
 type RetryFetcher struct {
@@ -48,10 +50,11 @@ func (r *RetryFetcher) Fetch(ctx context.Context, url string) (domain.FetchResul
 				zap.Int("max_retries", r.maxRetries),
 			)
 
+			delay := r.backoff(r.retryDelay, attempt)
 			select {
 			case <-ctx.Done():
 				return domain.FetchResult{}, ctx.Err()
-			case <-time.After(r.retryDelay):
+			case <-time.After(delay):
 			}
 		}
 
@@ -84,7 +87,7 @@ func (r *RetryFetcher) Fetch(ctx context.Context, url string) (domain.FetchResul
 	return lastResult, lastErr
 }
 
-func (r *RetryFetcher) isRetryableError(err error) bool {
+func (r RetryFetcher) isRetryableError(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -98,7 +101,7 @@ func (r *RetryFetcher) isRetryableError(err error) bool {
 	return errors.As(err, &opErr)
 }
 
-func (r *RetryFetcher) isRetryableStatusCode(statusCode int) bool {
+func (r RetryFetcher) isRetryableStatusCode(statusCode int) bool {
 	switch statusCode {
 	case http.StatusTooManyRequests,
 		http.StatusInternalServerError,
@@ -109,4 +112,16 @@ func (r *RetryFetcher) isRetryableStatusCode(statusCode int) bool {
 	default:
 		return false
 	}
+}
+
+func (r RetryFetcher) backoff(base time.Duration, attempt int) time.Duration {
+	delay := base * time.Duration(1<<attempt)
+
+	if delay > maxBackoff {
+		delay = maxBackoff
+	}
+
+	jitter := time.Duration(rand.Int63n(int64(delay / 2)))
+
+	return delay + jitter
 }

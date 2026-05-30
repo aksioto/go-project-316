@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"code/internal/domain"
+	"code/internal/usecase/analyzer/fetcher"
+	"code/internal/usecase/analyzer/filter"
 
 	"go.uber.org/zap"
 )
@@ -22,15 +24,15 @@ type PageFetcher interface {
 
 type pageFetcher struct {
 	logger            *zap.Logger
-	fetcher           Fetcher
-	contentTypeFilter ContentTypeFilter
+	fetcher           fetcher.Fetcher
+	contentTypeFilter filter.ContentTypeFilter
 }
 
-func NewPageFetcher(logger *zap.Logger, fetcher Fetcher, contentTypeFilter ContentTypeFilter) PageFetcher {
+func NewPageFetcher(logger *zap.Logger, f fetcher.Fetcher, ctf filter.ContentTypeFilter) PageFetcher {
 	return &pageFetcher{
 		logger:            logger,
-		fetcher:           fetcher,
-		contentTypeFilter: contentTypeFilter,
+		fetcher:           f,
+		contentTypeFilter: ctf,
 	}
 }
 

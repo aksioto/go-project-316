@@ -59,7 +59,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - urlshortener
+        - hexlet-go-crawler
   exclusions:
     generated: lax
     paths:

@@ -1,4 +1,4 @@
-package analyzer
+package fetcher
 
 import (
 	"context"
