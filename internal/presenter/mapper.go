@@ -1,8 +1,10 @@
 package presenter
 
 import (
-	"code/internal/domain"
+	"sort"
 	"time"
+
+	"code/internal/domain"
 )
 
 func MapReport(r domain.Report) ReportDTO {
@@ -11,6 +13,13 @@ func MapReport(r domain.Report) ReportDTO {
 	for _, p := range r.Pages {
 		pages = append(pages, mapPage(p))
 	}
+
+	sort.SliceStable(pages, func(i, j int) bool {
+		if pages[i].Depth != pages[j].Depth {
+			return pages[i].Depth < pages[j].Depth
+		}
+		return pages[i].URL < pages[j].URL
+	})
 
 	return ReportDTO{
 		RootURL:     r.RootURL,
@@ -22,12 +31,10 @@ func MapReport(r domain.Report) ReportDTO {
 
 func mapPage(p domain.Page) PageDTO {
 	dto := PageDTO{
-		URL:         p.URL,
-		Depth:       p.Depth,
-		HTTPStatus:  p.StatusCode,
-		Status:      statusFromError(p.Err),
-		BrokenLinks: make([]BrokenLinkDTO, 0),
-		Assets:      make([]AssetDTO, 0),
+		URL:        p.URL,
+		Depth:      p.Depth,
+		HTTPStatus: p.StatusCode,
+		Status:     statusFromError(p.Err),
 	}
 
 	if p.Err != nil {
@@ -36,14 +43,21 @@ func mapPage(p domain.Page) PageDTO {
 
 	if p.SEO != nil {
 		dto.SEO = mapSEO(*p.SEO)
+	} else {
+		dto.SEO = &SEODTO{}
 	}
 
-	if len(p.Assets) > 0 {
-		dto.Assets = mapAssets(p.Assets)
-	}
+	if p.Err == nil {
+		dto.BrokenLinks = make([]BrokenLinkDTO, 0)
+		dto.Assets = make([]AssetDTO, 0)
 
-	if len(p.BrokenLinks) > 0 {
-		dto.BrokenLinks = mapBrokenLinks(p.BrokenLinks)
+		if len(p.Assets) > 0 {
+			dto.Assets = mapAssets(p.Assets)
+		}
+
+		if len(p.BrokenLinks) > 0 {
+			dto.BrokenLinks = mapBrokenLinks(p.BrokenLinks)
+		}
 	}
 
 	if !p.DiscoveredAt.IsZero() {
@@ -81,6 +95,14 @@ func mapAssets(assets []domain.Asset) []AssetDTO {
 			Error:      a.Error,
 		})
 	}
+
+	sort.SliceStable(result, func(i, j int) bool {
+		if result[i].Type != result[j].Type {
+			return result[i].Type < result[j].Type
+		}
+		return result[i].URL < result[j].URL
+	})
+
 	return result
 }
 

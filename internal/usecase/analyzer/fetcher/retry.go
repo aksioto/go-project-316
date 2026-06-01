@@ -35,6 +35,18 @@ func NewRetryFetcher(logger *zap.Logger, fetcher Fetcher, maxRetries int) *Retry
 }
 
 func (r *RetryFetcher) Fetch(ctx context.Context, url string) (domain.FetchResult, error) {
+	return r.doFetch(ctx, url, r.fetcher.Fetch)
+}
+
+func (r *RetryFetcher) FetchHead(ctx context.Context, url string) (domain.FetchResult, error) {
+	return r.doFetch(ctx, url, r.fetcher.FetchHead)
+}
+
+func (r *RetryFetcher) doFetch(
+	ctx context.Context,
+	url string,
+	do func(context.Context, string) (domain.FetchResult, error),
+) (domain.FetchResult, error) {
 	var lastResult domain.FetchResult
 	var lastErr error
 
@@ -58,7 +70,7 @@ func (r *RetryFetcher) Fetch(ctx context.Context, url string) (domain.FetchResul
 			}
 		}
 
-		result, err := r.fetcher.Fetch(ctx, url)
+		result, err := do(ctx, url)
 		lastResult = result
 		lastErr = err
 

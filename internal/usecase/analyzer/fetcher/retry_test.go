@@ -26,6 +26,14 @@ type mockResponse struct {
 }
 
 func (m *mockFetcher) Fetch(ctx context.Context, url string) (domain.FetchResult, error) {
+	return m.doFetch(ctx, url)
+}
+
+func (m *mockFetcher) FetchHead(ctx context.Context, url string) (domain.FetchResult, error) {
+	return m.doFetch(ctx, url)
+}
+
+func (m *mockFetcher) doFetch(ctx context.Context, url string) (domain.FetchResult, error) {
 	idx := int(atomic.AddInt32(&m.callCount, 1)) - 1
 	if idx >= len(m.responses) {
 		return domain.FetchResult{}, errors.New("no more responses")

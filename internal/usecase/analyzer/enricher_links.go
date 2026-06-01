@@ -46,7 +46,7 @@ func (e *LinksEnricher) Enrich(ctx context.Context, page *domain.Page, doc *goqu
 			break
 		}
 
-		result, err := e.fetcher.Fetch(ctx, link.URL)
+		result, err := e.fetcher.FetchHead(ctx, link.URL)
 		if err != nil {
 			e.logger.Debug("broken link (error)",
 				zap.String("url", link.URL),

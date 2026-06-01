@@ -33,17 +33,14 @@ func (p *PageProcessor) ProcessPage(ctx context.Context, pageURL string, depth i
 	result := p.pageFetcher.Fetch(ctx, pageURL, depth)
 	page := result.Page
 
-	isStartPage := depth == 0
-	hasError := page.Err != nil || (page.StatusCode >= 400 && page.StatusCode < 600)
-
-	if !result.IsHTML {
-		return pageResult{page: page, shouldInclude: isStartPage && hasError, depth: depth}
+	if page.Err != nil {
+		return pageResult{page: page, shouldInclude: true, depth: depth}
 	}
 
 	doc, err := extractor.ParseHTML(result.Body)
 	if err != nil {
 		p.logger.Debug("failed to parse HTML", zap.Error(err))
-		return pageResult{page: page, shouldInclude: isStartPage, depth: depth}
+		return pageResult{page: page, shouldInclude: true, depth: depth}
 	}
 
 	links := p.linkExtractor.Extract(pageURL, doc)

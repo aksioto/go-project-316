@@ -72,7 +72,7 @@ func TestJSONPresenter_AllFieldsPresent(t *testing.T) {
 	assert.Equal(t, float64(0), page["depth"])
 	assert.Equal(t, float64(200), page["http_status"])
 	assert.Equal(t, "ok", page["status"])
-	assert.Contains(t, page, "error")
+	assert.NotContains(t, page, "error", "error should be omitted when empty")
 	assert.Contains(t, page, "seo")
 	assert.Contains(t, page, "broken_links")
 	assert.Contains(t, page, "assets")
@@ -90,7 +90,7 @@ func TestJSONPresenter_AllFieldsPresent(t *testing.T) {
 	bl := brokenLinks[0].(map[string]interface{})
 	assert.Equal(t, "https://example.com/missing", bl["url"])
 	assert.Equal(t, float64(404), bl["status_code"])
-	assert.Contains(t, bl, "error")
+	assert.NotContains(t, bl, "error", "broken link error should be omitted when empty")
 
 	assets := page["assets"].([]interface{})
 	require.Len(t, assets, 1)
@@ -99,7 +99,7 @@ func TestJSONPresenter_AllFieldsPresent(t *testing.T) {
 	assert.Equal(t, "image", asset["type"])
 	assert.Equal(t, float64(200), asset["status_code"])
 	assert.Equal(t, float64(12345), asset["size_bytes"])
-	assert.Contains(t, asset, "error")
+	assert.NotContains(t, asset, "error", "asset error should be omitted when empty")
 }
 
 func TestJSONPresenter_EmptyFieldsPresent(t *testing.T) {
@@ -134,7 +134,7 @@ func TestJSONPresenter_EmptyFieldsPresent(t *testing.T) {
 	pages := result["pages"].([]interface{})
 	page := pages[0].(map[string]interface{})
 
-	assert.Contains(t, page, "error", "error field must always be present")
+	assert.NotContains(t, page, "error", "error field should be omitted when empty")
 	assert.Contains(t, page, "broken_links", "broken_links field must always be present")
 	assert.Contains(t, page, "assets", "assets field must always be present")
 	assert.Contains(t, page, "discovered_at", "discovered_at field must always be present")

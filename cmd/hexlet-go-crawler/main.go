@@ -93,9 +93,7 @@ func main() {
 				return err
 			}
 			defer func() {
-				if syncErr := logger.Sync(); syncErr != nil {
-					fmt.Fprintf(os.Stderr, "logger sync error: %v\n", syncErr)
-				}
+				_ = logger.Sync() //nolint:errcheck
 			}()
 
 			opts := crawler.Options{

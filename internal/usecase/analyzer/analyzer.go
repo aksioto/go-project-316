@@ -35,6 +35,8 @@ func NewDefaultAnalyzer(logger *zap.Logger, f fetcher.Fetcher, opts Options) *An
 	linkExtractor := extractor.NewLinkExtractor()
 	assetExtractor := extractor.NewAssetExtractor()
 
+	domainFilter := filter.NewDomainFilter()
+
 	enricher := NewCompositeEnricher(
 		NewSEOEnricher(logger),
 		NewLinksEnricher(logger, retryFetcher, rateLimiter, linkExtractor),
@@ -47,7 +49,7 @@ func NewDefaultAnalyzer(logger *zap.Logger, f fetcher.Fetcher, opts Options) *An
 		logger:       logger,
 		processor:    processor,
 		pageFetcher:  pf,
-		domainFilter: filter.NewDomainFilter(),
+		domainFilter: domainFilter,
 		rateLimiter:  rateLimiter,
 		opts:         opts,
 	}
@@ -74,12 +76,12 @@ func (a *Analyzer) Analyze(ctx context.Context) domain.Report {
 		report.Pages = append(report.Pages, result.Page)
 		return report
 	}
+	a.domainFilter.SetRoot(root)
 
 	coordinator := NewCoordinator(
 		a.processor,
 		a.domainFilter,
 		a.rateLimiter,
-		root,
 		a.opts.Depth,
 		a.opts.Concurrency,
 	)

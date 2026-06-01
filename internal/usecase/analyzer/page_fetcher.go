@@ -58,7 +58,7 @@ func (pf *pageFetcher) Fetch(ctx context.Context, pageURL string, depth int) Pag
 	}
 
 	page.StatusCode = result.StatusCode
-	isHTML := pf.contentTypeFilter.IsHTML(result.ContentType) && result.StatusCode < 400
+	isHTML := pf.contentTypeFilter.IsHTML(result.ContentType)
 
 	pf.logger.Debug("page fetched",
 		zap.String("url", pageURL),

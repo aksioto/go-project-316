@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"context"
+	"net/http"
 	"strconv"
 	"sync"
 
@@ -103,7 +104,7 @@ func (e *AssetsEnricher) fetchAsset(ctx context.Context, assetURL string) domain
 
 	asset.StatusCode = result.StatusCode
 
-	if result.StatusCode >= 400 {
+	if result.StatusCode >= http.StatusBadRequest {
 		asset.Error = "HTTP " + strconv.Itoa(result.StatusCode)
 		return asset
 	}

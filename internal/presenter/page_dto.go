@@ -5,7 +5,7 @@ type PageDTO struct {
 	Depth        int             `json:"depth"`
 	HTTPStatus   int             `json:"http_status"`
 	Status       string          `json:"status"`
-	Error        string          `json:"error"`
+	Error        string          `json:"error,omitempty"`
 	SEO          *SEODTO         `json:"seo"`
 	BrokenLinks  []BrokenLinkDTO `json:"broken_links"`
 	Assets       []AssetDTO      `json:"assets"`

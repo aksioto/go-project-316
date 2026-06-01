@@ -21,7 +21,15 @@ func New(httpClient *http.Client, userAgent string) *Client {
 }
 
 func (c *Client) Fetch(ctx context.Context, url string) (domain.FetchResult, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	return c.doRequest(ctx, http.MethodGet, url)
+}
+
+func (c *Client) FetchHead(ctx context.Context, url string) (domain.FetchResult, error) {
+	return c.doRequest(ctx, http.MethodHead, url)
+}
+
+func (c *Client) doRequest(ctx context.Context, method, url string) (domain.FetchResult, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return domain.FetchResult{}, err
 	}
@@ -34,7 +42,10 @@ func (c *Client) Fetch(ctx context.Context, url string) (domain.FetchResult, err
 	if err != nil {
 		return domain.FetchResult{}, err
 	}
-	defer resp.Body.Close()
+
+	defer func() {
+		_ = resp.Body.Close() //nolint:errcheck
+	}()
 
 	const maxBodySize = 10 << 20 // 10 MB
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))

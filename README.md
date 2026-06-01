@@ -90,21 +90,18 @@ The app uses the `ENV` environment variable to select logger mode:
 
 The `--depth` parameter controls how many levels of links the crawler will follow:
 
-- **depth=1**: Only the start page is analyzed (no links are followed)
+- **depth=0**, **depth=1**: Only the start page is analyzed (no links are followed)
 - **depth=2**: Start page + pages linked directly from it
 - **depth=N**: Pages up to N-1 clicks away from the start page
 
 ### Example
 
 ```text
-Start Page (depth 0)
-├── /about (depth 1)
-│   └── /about/team (depth 2)
-└── /contact (depth 1)
+Start Page (depth 0, 1)
+├── /about (depth 2)
+│   └── /about/team (depth 3)
+└── /contact (depth 2)
 ```
-
-With `--depth=2`, all pages above will be crawled.  
-With `--depth=1`, only the start page will be crawled.
 
 ### Notes
 

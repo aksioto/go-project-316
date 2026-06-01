@@ -2,7 +2,6 @@ package analyzer
 
 import (
 	"context"
-	"net/url"
 	"sync"
 
 	"code/internal/domain"
@@ -30,7 +29,6 @@ type Coordinator struct {
 	processor    pageProcessor
 	domainFilter filter.DomainFilter
 	rateLimiter  Waiter
-	root         *url.URL
 	maxDepth     int
 	workers      int
 
@@ -44,7 +42,6 @@ func NewCoordinator(
 	processor pageProcessor,
 	domainFilter filter.DomainFilter,
 	rateLimiter Waiter,
-	root *url.URL,
 	maxDepth int,
 	workers int,
 ) *Coordinator {
@@ -55,7 +52,6 @@ func NewCoordinator(
 		processor:    processor,
 		domainFilter: domainFilter,
 		rateLimiter:  rateLimiter,
-		root:         root,
 		maxDepth:     maxDepth,
 		workers:      workers,
 		visited:      make(map[string]struct{}),
@@ -63,8 +59,8 @@ func NewCoordinator(
 }
 
 func (c *Coordinator) Crawl(ctx context.Context, startURL string) []domain.Page {
-	startURL = normalizer.NormalizeURL(startURL)
-	c.visited[startURL] = struct{}{}
+	normalized := normalizer.NormalizeURL(startURL)
+	c.visited[normalized] = struct{}{}
 
 	if err := c.rateLimiter.Wait(ctx); err != nil {
 		return c.pages
@@ -92,7 +88,7 @@ func (c *Coordinator) Crawl(ctx context.Context, startURL string) []domain.Page 
 
 func (c *Coordinator) tryVisit(linkURL string) (string, bool) {
 	normalized := normalizer.NormalizeURL(linkURL)
-	if !c.domainFilter.IsSameDomain(c.root, normalized) {
+	if !c.domainFilter.IsSameDomain(normalized) {
 		return "", false
 	}
 
