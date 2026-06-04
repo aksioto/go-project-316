@@ -1,6 +1,7 @@
 package presenter
 
 import (
+	"net/http"
 	"sort"
 	"time"
 
@@ -34,7 +35,7 @@ func mapPage(p domain.Page) PageDTO {
 		URL:        p.URL,
 		Depth:      p.Depth,
 		HTTPStatus: p.StatusCode,
-		Status:     statusFromError(p.Err),
+		Status:     pageStatus(p.StatusCode, p.Err),
 	}
 
 	if p.Err != nil {
@@ -67,8 +68,11 @@ func mapPage(p domain.Page) PageDTO {
 	return dto
 }
 
-func statusFromError(err error) string {
+func pageStatus(statusCode int, err error) string {
 	if err != nil {
+		return "error"
+	}
+	if statusCode >= http.StatusBadRequest {
 		return "error"
 	}
 	return "ok"

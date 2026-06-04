@@ -223,6 +223,52 @@ func TestJSONPresenter_ISO8601TimeFormat(t *testing.T) {
 	assert.NoError(t, err, "discovered_at should be in ISO8601/RFC3339 format")
 }
 
+func TestJSONPresenter_HTTPErrorStatusReturnsError(t *testing.T) {
+	generatedAt := time.Date(2024, 6, 1, 12, 34, 56, 0, time.UTC)
+	discoveredAt := time.Date(2024, 6, 1, 12, 34, 56, 0, time.UTC)
+
+	tests := []struct {
+		name       string
+		statusCode int
+		wantStatus string
+	}{
+		{"200 returns ok", 200, "ok"},
+		{"301 returns ok", 301, "ok"},
+		{"404 returns error", 404, "error"},
+		{"500 returns error", 500, "error"},
+		{"503 returns error", 503, "error"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			report := domain.Report{
+				RootURL:     "https://example.com",
+				MaxDepth:    1,
+				GeneratedAt: generatedAt,
+				Pages: []domain.Page{
+					{
+						URL:          "https://example.com",
+						Depth:        0,
+						StatusCode:   tt.statusCode,
+						DiscoveredAt: discoveredAt,
+					},
+				},
+			}
+
+			presenter := NewJSONPresenter(false)
+			data, err := presenter.Present(report)
+			require.NoError(t, err)
+
+			var dto ReportDTO
+			err = json.Unmarshal(data, &dto)
+			require.NoError(t, err)
+
+			require.Len(t, dto.Pages, 1)
+			assert.Equal(t, tt.wantStatus, dto.Pages[0].Status)
+		})
+	}
+}
+
 func TestJSONPresenter_MatchesReferenceStructure(t *testing.T) {
 	generatedAt := time.Date(2024, 6, 1, 12, 34, 56, 0, time.UTC)
 	discoveredAt := time.Date(2024, 6, 1, 12, 34, 56, 0, time.UTC)
